@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 /**
  * Copyright 2020 Baidu Inc. All Rights Reserved.
  *
@@ -36,7 +37,6 @@ import useClassNames from '~/hooks/useClassNames';
 import useComponents from '~/hooks/useComponents';
 import {useTranslation} from 'react-i18next';
 import {fetcher} from '~/utils/fetch';
-import {Child} from './ProfilerPage/OperatorView/type';
 import {isArray} from 'lodash';
 
 const BASE_URI: string = import.meta.env.SNOWPACK_PUBLIC_BASE_URI;
@@ -268,7 +268,16 @@ const SubNav: FunctionComponent<{
 const Navbar: FunctionComponent = () => {
     const history = useHistory();
     const {t, i18n} = useTranslation('common');
+    // const {pathname: pathnames} = useLocation();
+    // console.log('pathnames', pathnames);
+    // const paths = pathnames.split('/');
+    // paths.shift();
+    // paths.shift();
+    // // join('/');
+    // const pathname = '/' + paths.join('/');
+    // console.log('pathname', pathname);
     const {pathname} = useLocation();
+
     const [navList, setNavlist] = useState<string[]>([]);
     const changeLanguage = useCallback(() => {
         const language = i18n.language;
@@ -284,22 +293,26 @@ const Navbar: FunctionComponent = () => {
             image: 'image',
             audio: 'audio',
             text: 'text',
-            graphStatic: 'static_graph',
-            graphDynamic: 'dynamic_graph',
+            fastdeploy_server: 'fastdeploy_server',
+            static_graph: 'static_graph',
+            dynamic_graph: 'dynamic_graph',
             'high-dimensional': 'embeddings',
             'pr-curve': 'pr_curve',
             'roc-curve': 'roc_curve',
             profiler: 'profiler',
             'hyper-parameter': 'hyper_parameters',
             x2paddle: 'x2paddle',
-            fastdeploy_server: 'fastdeploy_server'
+            fastdeploy_client: 'fastdeploy_client'
         };
     }, []);
+    console.log('pathname', pathname);
+
     const currentPath = useMemo(() => pathname.replace(BASE_URI, ''), [pathname]);
 
     const [components] = useComponents();
     const routePush = (route: any, component: any) => {
         const Components = isArray(component) ? [...component] : [...component.values()];
+        console.log('routeEm[route.id]', navList, navList.includes(routeEm[route.id]));
         if (navList.includes(routeEm[route.id])) {
             // debugger;
 
@@ -314,13 +327,13 @@ const Navbar: FunctionComponent = () => {
     };
     const newcomponents = useMemo(() => {
         const Components = new Map();
-
         const parent: any[] = [];
         if (navList.length > 0) {
             for (const item of components) {
                 // const Id: any = item.id;
                 if (navList.includes(routeEm[item.id])) {
                     // Components.push(item);
+
                     Components.set(item.id, item);
                 }
                 if (item.children) {
@@ -355,6 +368,8 @@ const Navbar: FunctionComponent = () => {
         () => flatten(newcomponents.slice(MAX_ITEM_COUNT_IN_NAVBAR)),
         [newcomponents]
     );
+    console.log('currentPath', currentPath);
+
     const componentsInMoreMenu: any = useMemo(
         () =>
             flattenMoreComponents.map(item => ({
@@ -364,41 +379,92 @@ const Navbar: FunctionComponent = () => {
         [currentPath, flattenMoreComponents]
     );
     const [navItemsInNavbar, setNavItemsInNavbar] = useState<NavbarItemType[]>([]);
-    const routesChange = (route: any, parentPath?: any) => {
+    const routesChange = (route: any, parentPath: string, path: string) => {
         // debugger;
-        if (navList.includes(routeEm[route.id])) {
-            // debugger;
-            if (parentPath) {
-                history.push(`${parentPath}/${route.id}`);
-                return true;
-            } else {
-                history.push(`/${route.id}`);
-                return true;
-            }
-            // setDefaultRoute(route.id);
+        //     if (navList.includes(routeEm[route.id])) {
+        //         debugger;
+        //     //     if (parentPath) {
+        //     //         history.push(`${parentPath}/${route.id}`);
+        //     //         return true;
+        //     //     } else {
+        //     //         history.push(`/${route.id}`);
+        //     //         return true;
+        //     //     }
+        //     //     // setDefaultRoute(route.id);
+        //     // }
+        //     // if (route.children) {
+        //     //     for (const Route of route.children) {
+        //     //         routesChange(Route, `/${route.id}`);
+        //     //     }
+        //     // }
+        //     // return false;
+        // };
+        let id = '';
+        if (parentPath) {
+            id = parentPath + `/${route.id}`;
+        } else {
+            id = `/${route.id}`;
+        }
+        // debugger;
+        const paths = path.split('/');
+        if (routeEm[route.id] === paths[paths.length - 1]) {
+            console.log('path', route.id);
+            history.push(id);
+            return true;
         }
         if (route.children) {
             for (const Route of route.children) {
-                routesChange(Route, `/${route.id}`);
+                const flag = routesChange(Route, id, path);
+                if (flag) {
+                    return true;
+                }
             }
         }
-        // return false;
     };
+
     useEffect(() => {
         // setLoading(true);
         fetcher('/component_tabs').then((res: any) => {
+            console.log('component_tabs', res);
+
             setNavlist(res);
         });
     }, []);
     useEffect(() => {
         // const defaultRoute = routes;
-        if (navList.length > 0) {
-            for (const route of routes) {
-                const flag = routesChange(route);
-                if (flag) {
-                    return;
+        if (navList.length > 0 && pathname) {
+            console.log('pathname', pathname);
+
+            // routesChange(route, '', path);
+            // debugger;
+            // const path = routeEm[pathNames];
+            if (pathname === '/index') {
+                const path = navList[0];
+                // for (const route of routes) {
+                //     routesChange(route, '', path);
+                // }
+                for (let index = 0; index < routes.length; index++) {
+                    const route = routes[index];
+                    const flag = routesChange(route, '', path);
+                    if (flag) {
+                        return;
+                    }
+                }
+            } else {
+                const path = pathname;
+                //
+                for (let index = 0; index < routes.length; index++) {
+                    const route = routes[index];
+                    const flag = routesChange(route, '', path);
+                    if (flag) {
+                        return;
+                    }
                 }
             }
+
+            // const route = navList[navList.length - 1];
+            // debugger;
+            // routesChange(route);
         }
     }, [navList]);
     useEffect(() => {

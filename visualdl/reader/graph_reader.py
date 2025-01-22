@@ -14,8 +14,10 @@
 # =======================================================================
 import json
 import os
+import tempfile
 
 from visualdl.component.graph import analyse_model
+from visualdl.component.graph import analyse_pir
 from visualdl.component.graph import Model
 from visualdl.io import bfile
 
@@ -30,7 +32,7 @@ def is_VDLGraph_file(path):
     Returns:
         True if the file is a VDL graph file, otherwise false.
     """
-    if "vdlgraph" not in path and 'pdmodel' not in path:
+    if "vdlgraph" not in path and 'pdmodel' not in path and 'json' not in path:
         return False
     return True
 
@@ -39,7 +41,7 @@ class GraphReader(object):
     """Graph reader to read vdl graph files, support for frontend api in lib.py.
     """
 
-    def __init__(self, logdir=''):
+    def __init__(self, logdir='', model_name=''):
         """Instance of GraphReader
 
         Args:
@@ -50,6 +52,7 @@ class GraphReader(object):
         else:
             self.dir = logdir
 
+        self.model_name = model_name
         self.walks = {}
         self.displayname2runs = {}
         self.runs2displayname = {}
@@ -100,7 +103,10 @@ class GraphReader(object):
                 ]
                 tags_temp.sort(reverse=True)
                 if len(tags_temp) > 0:
-                    walks_temp.update({run: tags_temp[0]})
+                    if self.model_name:
+                        walks_temp.update({run: self.model_name})
+                    else:
+                        walks_temp.update({run: tags_temp[0]})
             self.walks = walks_temp
         return self.walks
 
@@ -136,6 +142,20 @@ class GraphReader(object):
             data = bfile.BFile(bfile.join(run, self.walks[run]), 'rb').read()
             if 'pdmodel' in self.walks[run]:
                 graph_model = Model(analyse_model(data))
+            elif 'json' in self.walks[run]:
+                try:
+                    from paddle.jit import load
+                except Exception:
+                    print("Paddlepaddle is required to load json file.\n\
+                        Please refer to \
+                        https://www.paddlepaddle.org.cn/install/quick?docurl=/documentation/docs/zh/install/pip/linux-pip.html\
+                        to install paddlepaddle.")
+                json_object = json.loads(data)
+                with tempfile.TemporaryDirectory() as tmp:
+                    with open(os.path.join(tmp, 'temp.json'), 'w') as json_file:
+                        json.dump(json_object, json_file, indent=4)
+                    model_data = load(os.path.join(tmp, 'temp'))
+                graph_model = Model(analyse_pir(model_data.program()))
             else:
                 graph_model = Model(json.loads(data.decode()))
             self.graph_buffer[run] = graph_model
@@ -163,6 +183,20 @@ class GraphReader(object):
             data = bfile.BFile(bfile.join(run, self.walks[run]), 'rb').read()
             if 'pdmodel' in self.walks[run]:
                 graph_model = Model(analyse_model(data))
+            elif 'json' in self.walks[run]:
+                try:
+                    from paddle.jit import load
+                except Exception:
+                    print("Paddlepaddle is required to load json file.\n\
+                        Please refer to \
+                        https://www.paddlepaddle.org.cn/install/quick?docurl=/documentation/docs/zh/install/pip/linux-pip.html\
+                        to install paddlepaddle.")
+                json_object = json.loads(data)
+                with tempfile.TemporaryDirectory() as tmp:
+                    with open(os.path.join(tmp, 'temp.json'), 'w') as json_file:
+                        json.dump(json_object, json_file, indent=4)
+                    model_data = load(os.path.join(tmp, 'temp'))
+                graph_model = Model(analyse_pir(model_data.program()))
             else:
                 graph_model = Model(json.loads(data.decode()))
             self.graph_buffer[run] = graph_model
@@ -184,6 +218,20 @@ class GraphReader(object):
             data = bfile.BFile(bfile.join(run, self.walks[run]), 'rb').read()
             if 'pdmodel' in self.walks[run]:
                 graph_model = Model(analyse_model(data))
+            elif 'json' in self.walks[run]:
+                try:
+                    from paddle.jit import load
+                except Exception:
+                    print("Paddlepaddle is required to load json file.\n\
+                        Please refer to \
+                        https://www.paddlepaddle.org.cn/install/quick?docurl=/documentation/docs/zh/install/pip/linux-pip.html\
+                        to install paddlepaddle.")
+                json_object = json.loads(data)
+                with tempfile.TemporaryDirectory() as tmp:
+                    with open(os.path.join(tmp, 'temp.json'), 'w') as json_file:
+                        json.dump(json_object, json_file, indent=4)
+                    model_data = load(os.path.join(tmp, 'temp'))
+                graph_model = Model(analyse_pir(model_data.program()))
             else:
                 graph_model = Model(json.loads(data.decode()))
             self.graph_buffer[run] = graph_model
@@ -206,12 +254,30 @@ class GraphReader(object):
                 return
             if 'pdmodel' in content:
                 file_type = 'pdmodel'
+            elif 'json' in content:
+                file_type = 'json'
             else:
                 file_type = 'vdlgraph'
             content = bfile.BFile(content, 'rb').read()
 
         if file_type == 'pdmodel':
             data = analyse_model(content)
+            self.graph_buffer['manual_input_model'] = Model(data)
+
+        elif file_type == 'json':
+            try:
+                from paddle.jit import load
+            except Exception:
+                print("Paddlepaddle is required to load json file.\n\
+                    Please refer to \
+                    https://www.paddlepaddle.org.cn/install/quick?docurl=/documentation/docs/zh/install/pip/linux-pip.html\
+                    to install paddlepaddle.")
+            json_object = json.loads(content)
+            with tempfile.TemporaryDirectory() as tmp:
+                with open(os.path.join(tmp, 'temp.json'), 'w') as json_file:
+                    json.dump(json_object, json_file, indent=4)
+                model_data = load(os.path.join(tmp, 'temp'))
+            data = analyse_pir(model_data.program())
             self.graph_buffer['manual_input_model'] = Model(data)
 
         elif file_type == 'vdlgraph':

@@ -101,7 +101,7 @@ const Graph: FunctionComponent = () => {
     const onChangeFile = (e: React.ChangeEvent<HTMLInputElement>) => {
         const target = e.target as EventTarget & HTMLInputElement;
         const file: FileList | null = target.files as FileList;
-        if (file[0].name.split('.')[1] !== 'pdmodel') {
+        if (file[0].name.split('.')[1] !== 'pdmodel' && file[0].name.split('.')[1] !== 'json') {
             alert('该页面只能解析paddle的模型,如需解析请跳转网络结构静态图页面');
             return;
         }
@@ -120,10 +120,14 @@ const Graph: FunctionComponent = () => {
         }).then(
             res => {
                 // debugger
+                console.log('res', res);
+
                 const newFilesId = filesId + 1;
                 setFilesId(newFilesId);
             },
             res => {
+                console.log('errres', res);
+
                 // debugger
                 const newFilesId = filesId + 1;
                 setFilesId(newFilesId);
@@ -289,7 +293,7 @@ const Graph: FunctionComponent = () => {
                                                     checked={selectedRuns === run ? true : false}
                                                     value={run}
                                                     title={run}
-                                                    onChange={(value: string) => {
+                                                    onChange={() => {
                                                         setSelectedRuns(run);
                                                     }}
                                                 >
@@ -309,6 +313,7 @@ const Graph: FunctionComponent = () => {
                 )}
             </Aside>
         );
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [
         t,
         bottom,
